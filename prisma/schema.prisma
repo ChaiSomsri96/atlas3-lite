@@ -1,0 +1,1019 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// USER
+model VerificationToken {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Account {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  username           String?
+  image              String?
+  oauth_token_secret String? // for twitter
+  oauth_token        String? // for twitter
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  type          UserType  @default(CREATOR)
+
+  accounts         Account[]
+  sessions         Session[]
+  giveawayEntries  GiveawayEntry[]
+  allowlistEntries AllowlistEntry[]
+
+  wallets                   Wallet[]
+  ownedGiveaways            Giveaway[]
+  voteEntries               ProjectVoteEntry[]
+  marketplaceCreatedRecords MarketplaceRecord[] @relation("CreatedByUser")
+
+  points                        Int                            @default(0)
+  MarketplaceActivity           MarketplaceActivity[]
+  UserPointsDepositHistory      UserPointsDepositHistory[]
+  UserPointsWithdrawHistory     UserPointsWithdrawHistory[]
+  joinedPresales                Presale[]
+  presaleEntries                PresaleEntry[]
+  PresaleEntryIntent            PresaleEntryIntent[]
+  UserOMB                       UserOMB[]
+  MeeListApplications           MeeListApplications?
+  ProjectApplications           ProjectApplications?           @relation(fields: [projectApplicationsId], references: [id])
+  projectApplicationsId         String?                        @db.ObjectId
+  ProjectApplicationSubmissions ProjectApplicationSubmissions?
+
+  forgeStaked                 Int?                          @default(0)
+  lotteryWinners              LotteryWinners[]
+  UserForgeDepositHistory     UserForgeDepositHistory[]
+  UserForgeWithdrawHistory    UserForgeWithdrawHistory[]
+  UserForgeWithdrawFeeHistory UserForgeWithdrawFeeHistory[]
+}
+
+enum UserType {
+  USER
+  CREATOR
+  ADMIN
+  MASTER
+}
+
+type Wallet {
+  address   String
+  network   BlockchainNetwork
+  isDefault Boolean
+}
+
+enum BlockchainNetwork {
+  TBD
+  Ethereum
+  Solana
+  Polygon
+  Aptos
+  Sui
+  Cardano
+  Bitcoin
+  Avax
+  Venom
+  Injective
+  Sei
+}
+
+// PROJECT
+model Project {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String   @unique
+  description String
+  createdAt   DateTime @default(now())
+
+  imageUrl  String?
+  bannerUrl String?
+
+  websiteUrl String?
+
+  discordInviteUrl String?
+
+  status    ProjectStatus
+  phase     ProjectPhase
+  network   BlockchainNetwork
+  supply    Int?
+  mintPrice Float?
+  mintDate  DateTime?
+  mintTime  String?
+
+  giveaways Giveaway[] @relation("GiveawayToProject")
+  collabs   Giveaway[] @relation("GiveawayToCollab")
+
+  allowlist Allowlist?
+
+  roles       ProjectRole[]
+  roleInvites ProjectRoleInvite[]
+
+  discordGuild    DiscordGuild?
+  twitterUsername String?
+
+  isFeatured Boolean?
+  priority   Int?
+  verified   Boolean?
+
+  defaultRoleId       String?
+  defaultRules        GiveawayRule[]
+  holderRules         GiveawayRule[]
+  channelPostSettings ChannelPostSettings[]
+
+  referrer           String?
+  withdrawSOLAddress String?
+  votes              Int?
+  rank               Int
+
+  voteEntries     ProjectVoteEntry[]
+  winnerHistories ProjectWinnerHistory[]
+
+  runningGiveaways   Int?
+  marketplaceRecords MarketplaceRecord[]
+
+  accumulatedPoints       Int                       @default(0)
+  allowlistTradingEnabled Boolean                   @default(true)
+  volume                  MarketplaceProjectVolume?
+  Presale                 Presale[]
+
+  presaleAmount       Int                   @default(0)
+  MarketplaceActivity MarketplaceActivity[]
+
+  roleIdOne           String?
+  roleIdTwo           String?
+  roleIdThree         String?
+  ombId               String?
+  ProjectApplications ProjectApplications[]
+}
+
+type DiscordGuild {
+  id                       String
+  name                     String
+  giveawayChannelId        String?
+  giveawayRoleTagId        String?
+  incomingCollabsChannelId String?
+  incomingCollabsTagId     String?
+  winnerChannelId          String?
+}
+
+model ProjectRoleInvite {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  type ProjectRoleType
+
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+enum AllowlistType {
+  DISCORD_ROLE
+  DTC
+}
+
+model Allowlist {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  projectId String   @unique @db.ObjectId
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  type AllowlistType
+
+  roles    AllowlistRole[]
+  enabled  Boolean
+  maxCap   Int?
+  closesAt DateTime?
+
+  entries AllowlistEntry[]
+}
+
+type ProjectRole {
+  type   ProjectRoleType
+  userId String
+}
+
+enum ProjectRoleType {
+  ADMIN
+  MANAGER
+  MODERATOR
+}
+
+enum ProjectPhase {
+  PREMINT
+  POSTMINT
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model AllowlistEntry {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String? @db.ObjectId
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  walletAddress String
+  role          DiscordRole?
+
+  allowlistId String    @db.ObjectId
+  allowlist   Allowlist @relation(fields: [allowlistId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  // @@unique([userId, allowlistId])
+  MarketplaceRecord MarketplaceRecord[]
+
+  source String?
+}
+
+//GIVEAWAY
+model Giveaway {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug        String   @unique
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+
+  imageUrl  String?
+  bannerUrl String?
+
+  type    GiveawayType
+  status  GiveawayStatus
+  endsAt  DateTime?
+  network BlockchainNetwork?
+
+  projectId String?  @db.ObjectId
+  project   Project? @relation("GiveawayToProject", fields: [projectId], references: [id], onDelete: Cascade)
+
+  // collabType      GiveawayCollabType?
+  collabProjectId       String?   @db.ObjectId
+  collabRequestDeadline DateTime?
+  collabDuration        Int?
+
+  collabProject Project?    @relation("GiveawayToCollab", fields: [collabProjectId], references: [id], onDelete: Cascade)
+  collabType    CollabType?
+
+  rules GiveawayRule[]
+
+  maxEntries   Int?
+  entries      GiveawayEntry[]
+  entryCount   Int             @default(0)
+  usersEntered Int?            @default(0)
+
+  maxWinners    Int
+  discordRoleId String?
+
+  discordMessageId String?
+  discordChannelId String?
+
+  owner   User   @relation(fields: [ownerId], references: [id])
+  ownerId String @db.ObjectId
+
+  processing Boolean? @default(false)
+  processed  Boolean? @default(false)
+
+  countered Boolean?
+
+  settings  GiveawaySettings?
+  teamSpots Boolean?
+
+  paymentTokenId String?       @db.ObjectId
+  paymentToken   PaymentToken? @relation(fields: [paymentTokenId], references: [id])
+
+  paymentTokenAmount Float?
+  withdraw           GiveawayWithdraw?
+
+  adminCreated Boolean? @default(false)
+
+  // raffle specific
+  discordServerId  String?
+  discordRoleName  String?
+  discordInviteUrl String?
+  twitterUsername  String?
+}
+
+enum GiveawayCollabType {
+  EXTERNAL
+  PROJECT
+}
+
+// type CollabInfo {
+//   // Using these if type = EXTERNAL
+//   name        String
+//   description String
+//   type        CollabType
+// }
+
+enum CollabType {
+  RECEIVE_SPOTS
+  GIVE_SPOTS
+}
+
+enum GiveawayStatus {
+  DRAFT
+  COLLAB_PENDING
+  COLLAB_READY
+  RUNNING
+  PENDING_WINNERS
+  FINALIZED
+  COLLAB_REJECTED
+}
+
+enum GiveawayType {
+  FCFS
+  RAFFLE
+  MANUAL
+}
+
+model GiveawayEntry {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  discordUserId String?
+
+  giveawayId String    @db.ObjectId
+  giveaway   Giveaway? @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+
+  walletAddress String
+
+  entryAmount      Int     @default(1)
+  ipHash           String?
+  riskScore        Int?
+  uniqueConstraint String?
+
+  isWinner  Boolean?
+  createdAt DateTime @default(now())
+
+  processing       Boolean?
+  processed        Boolean   @default(false)
+  processStartDate DateTime?
+  processingError  String?
+}
+
+model GiveawayWithdraw {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  giveawayId   String                @unique @db.ObjectId
+  giveaway     Giveaway              @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  transactions WithdrawTransaction[]
+  isFinished   Boolean
+
+  createdAt DateTime @default(now())
+}
+
+type WithdrawTransaction {
+  id String @default(cuid()) @map("_id")
+
+  txSignature   String?
+  amount        Float
+  status        TransactionStatus
+  processDate   DateTime
+  processedDate DateTime?
+}
+
+//RULESET
+enum GiveawayRuleType {
+  TWITTER_FRIENDSHIP
+  TWITTER_TWEET
+  DISCORD_ROLE
+  DISCORD_GUILD
+  MINIMUM_BALANCE
+  OWN_NFT
+}
+
+type GiveawayRule {
+  id String @default(cuid()) @map("_id")
+
+  type GiveawayRuleType
+
+  //twitter
+  twitterFriendshipRule TwitterFriendshipRule?
+  twitterTweetRule      TwitterTweetRule?
+
+  //discord
+  discordRoleRule  DiscordRoleRule?
+  discordGuildRule DiscordGuildRule?
+
+  //on-chain
+  minimumBalanceRule MinimumBalanceRule?
+  ownNftRule         OwnNftRule?
+}
+
+type TwitterTweetRule {
+  tweetId String
+  actions TwitterActionType[]
+}
+
+enum TwitterActionType {
+  LIKE
+  RETWEET
+  QUOTE
+}
+
+type TwitterFriendshipRule {
+  username      String
+  relationships TwitterFriendshipRuleType[]
+}
+
+enum TwitterFriendshipRuleType {
+  FOLLOW
+  FOLLOWED_BY
+  NOTIFICATIONS_ON
+}
+
+enum NftTokenType {
+  ERC1155
+  ERC721
+  SPL
+}
+
+type OwnNftRule {
+  type                        NftTokenType
+  network                     BlockchainNetwork
+  collectionAddressOrContract String
+  collectionName              String
+}
+
+type MinimumBalanceRule {
+  network        BlockchainNetwork
+  minimumBalance Float
+  tokenAddress   String
+}
+
+type DiscordGuildRule {
+  guildId     String
+  guildName   String
+  guildInvite String?
+}
+
+// used in giveaways
+type DiscordRole {
+  id         String
+  name       String
+  multiplier Int    @default(1)
+}
+
+// used in allowlists
+type AllowlistRole {
+  id   String
+  name String
+}
+
+type GiveawayDiscordRole {
+  role DiscordRole
+  type DiscordRoleRuleType
+}
+
+type DiscordRoleRule {
+  guildId   String
+  guildName String
+  roles     GiveawayDiscordRole[]
+}
+
+type GiveawaySettings {
+  preventDuplicateIps    Boolean?
+  private                Boolean                 @default(false)
+  overrideRoleId         String?
+  multipleCollabProjects MultipleCollabProject[]
+}
+
+type MultipleCollabProject {
+  id        String  @default(cuid()) @map("_id")
+  projectId String?
+  spots     Int?
+  type      String?
+}
+
+type ChannelPostSettings {
+  id        String            @default(cuid()) @map("_id")
+  network   BlockchainNetwork
+  channelId String
+  roleId    String?
+  roleName  String?
+  type      String?
+}
+
+enum DiscordRoleRuleType {
+  HAVE_ROLE
+  DONT_HAVE_ROLE
+}
+
+model PaymentToken {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  tokenAddress        String            @unique
+  tokenName           String
+  tokenAccountAddress String
+  network             BlockchainNetwork
+  isActive            Boolean
+
+  giveaways Giveaway[]
+}
+
+model TransactionRecord {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  txSignature  String            @unique
+  sender       String
+  tokenAddress String
+  amount       Float
+  status       TransactionStatus
+  createdAt    DateTime          @default(now())
+  network      BlockchainNetwork
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESSED
+  FAILED
+}
+
+model ProjectVoteEntry {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  phase ProjectPhase
+
+  votes     Int
+  createdAt DateTime @default(now())
+}
+
+model ProjectWinnerHistory {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  votes     Int
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String   @db.ObjectId
+  type               String
+  relatedId          String   @db.ObjectId
+  relatedDescription String
+  createdAt          DateTime @default(now())
+}
+
+enum TradeType {
+  BUY
+  SELL
+}
+
+enum ListType {
+  LIST
+  DELIST
+}
+
+enum MarketplaceActionType {
+  BUY
+  SALE
+  LIST
+  DELIST
+  SALEIGNORE
+}
+
+model MarketplaceRecord {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdByUserId String @db.ObjectId
+  createdBy       User   @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+
+  tradeType TradeType
+  processed Boolean
+  listed    Boolean
+  createdAt DateTime  @default(now())
+  pointCost Int
+
+  allowlistEntryId String?         @db.ObjectId
+  allowlistEntry   AllowlistEntry? @relation(fields: [allowlistEntryId], references: [id])
+
+  role          DiscordRole?
+  walletAddress String?
+
+  MarketplaceActivity MarketplaceActivity[]
+
+  error String?
+
+  @@unique([createdByUserId, projectId, tradeType, listed], name: "uniqueConstraint")
+}
+
+model MarketplaceActivity {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  marketplaceRecordId String            @db.ObjectId
+  marketplaceRecord   MarketplaceRecord @relation(fields: [marketplaceRecordId], references: [id], onDelete: Cascade)
+
+  projectId String?  @db.ObjectId
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  action MarketplaceActionType
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model MarketplaceProcessedRecord {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String    @db.ObjectId
+  allowlistEntryId String    @db.ObjectId
+  tradeType        TradeType
+  createdAt        DateTime  @default(now())
+
+  @@unique([userId, allowlistEntryId, tradeType], name: "uniqueConstraint")
+}
+
+model UserPointsDepositHistory {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String            @db.ObjectId
+  user         User              @relation(fields: [userId], references: [id])
+  txSignature  String            @unique
+  sender       String
+  tokenAddress String
+  amount       Float
+  status       TransactionStatus
+  createdAt    DateTime          @default(now())
+}
+
+model UserPointsWithdrawHistory {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  user          User     @relation(fields: [userId], references: [id])
+  processed     Boolean  @default(false)
+  processing    Boolean  @default(false)
+  txSignature   String
+  createdAt     DateTime @default(now())
+  walletAddress String
+  error         String?
+
+  @@unique([userId, processed], name: "uniqueConstraint")
+}
+
+model MarketplaceUserWarning {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+
+  projectId String   @db.ObjectId
+  createdAt DateTime @default(now())
+  count     Int
+}
+
+model MarketplaceRecordLocks {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  marketplaceRecordId String   @unique @db.ObjectId
+  createdAt           DateTime @default(now())
+}
+
+model MarketplaceProjectVolume {
+  id           String  @id @default(auto()) @map("_id") @db.ObjectId
+  projectId    String  @unique @db.ObjectId
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  volume       Int
+  lastSale     Int
+  listingCount Int
+  buyCount     Int
+  floorPrice   Int
+  active       Boolean
+}
+
+model Presale {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug        String   @unique
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+
+  status  PresaleStatus
+  endsAt  DateTime
+  network BlockchainNetwork
+
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  rules GiveawayRule[]
+
+  supply           Int
+  maxSupplyPerUser Int
+  entries          PresaleEntry[]
+  entryCount       Int            @default(0)
+  pointsCost       Int
+
+  discordMessageId String?
+  discordChannelId String?
+
+  owner              User                 @relation(fields: [ownerId], references: [id])
+  ownerId            String               @db.ObjectId
+  PresaleEntryIntent PresaleEntryIntent[]
+}
+
+model PresaleEntry {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  presaleId String  @db.ObjectId
+  presale   Presale @relation(fields: [presaleId], references: [id], onDelete: Cascade)
+
+  walletAddress String
+
+  entryAmount Int
+  ipHash      String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([presaleId, userId])
+}
+
+model PresaleRecordLocks {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  presaleId String   @unique @db.ObjectId
+  createdAt DateTime @default(now())
+}
+
+enum PresaleStatus {
+  PENDING
+  RUNNING
+  FINALIZED
+}
+
+model PresaleEntryIntent {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  presaleId String  @db.ObjectId
+  presale   Presale @relation(fields: [presaleId], references: [id], onDelete: Cascade)
+
+  entryAmount   Int
+  walletAddress String
+  status        PresaleEntryIntentStatus
+  error         String                   @default("")
+
+  createdAt  DateTime @default(now())
+  processing Boolean  @default(false)
+
+  @@unique([presaleId, userId])
+}
+
+enum PresaleEntryIntentStatus {
+  PENDING
+  FAILED
+  SUCCESS
+}
+
+model UserOMB {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  wallets String[]
+}
+
+model MeeListApplications {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  twitterUserId   String
+  twitterImageUrl String
+  twitterUsername String
+  followers       Int
+
+  answers Answers[]
+
+  status    ApplicationStatus
+  createdAt DateTime          @default(now())
+  posted    Boolean           @default(false)
+
+  approvedAt  DateTime? @default(now())
+  submitSaved Boolean?  @default(false)
+}
+
+enum ApplicationStatus {
+  PENDING
+  DRAFT
+  APPROVED
+  REJECTED
+}
+
+type Answers {
+  question String
+  answer   String
+}
+
+model DiscordUserRoleQueue {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  discordUserId String
+  discordRoleId String
+}
+
+model Stats {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  runningRaffles      Int?
+  runningApplications Int?
+}
+
+type ApplicationQuestion {
+  text          String
+  type          String
+  options       String[]
+  required      Boolean
+  rows          Int?
+  textBoxNumber Int?
+}
+
+model ProjectApplications {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id])
+
+  questions       ApplicationQuestion[]
+  requirements    GiveawayRule[]
+  twitterUsername String
+
+  active      Boolean                         @default(false)
+  User        User[]
+  submissions ProjectApplicationSubmissions[]
+
+  apiUrl          String?
+  discordRoleId   String?
+  discordServerId String?
+}
+
+model ProjectApplicationSubmissions {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @unique @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  projectApplicationId String              @db.ObjectId
+  projectApplications  ProjectApplications @relation(fields: [projectApplicationId], references: [id], onDelete: Cascade)
+
+  twitterUserId   String
+  twitterImageUrl String
+  twitterUsername String
+  followers       Int
+
+  answers Answers[]
+
+  status    ApplicationStatus
+  createdAt DateTime          @default(now())
+  posted    Boolean           @default(false)
+
+  approvedAt  DateTime? @default(now())
+  submitSaved Boolean?  @default(false)
+
+  @@unique([userId, projectApplicationId], name: "uniqueConstraint")
+}
+
+//GIVEAWAY
+model Lottery {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now())
+
+  status  GiveawayStatus
+  endsAt  DateTime
+  network BlockchainNetwork
+
+  winners LotteryWinners[]
+
+  maxWinners Int
+
+  processing Boolean? @default(false)
+  processed  Boolean? @default(false)
+
+  usdReward     Float
+  jackpotWon    Boolean?
+  jackpotPrizes Reward[]
+  lotteryPrizes Reward[]
+}
+
+type Reward {
+  name      String
+  imageUrl  String
+  quantity  Int
+  sponsored String
+}
+
+model LotteryWinners {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  discordUserId String
+  username      String
+  userImage     String
+
+  lotteryId String   @db.ObjectId
+  lottery   Lottery? @relation(fields: [lotteryId], references: [id], onDelete: Cascade)
+
+  walletAddress        String
+  stakedForgeAtTheTime Int
+  createdAt            DateTime @default(now())
+  prizeWon             String
+  jackpotWon           Boolean
+}
+
+model UserForgeDepositHistory {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String            @db.ObjectId
+  user         User              @relation(fields: [userId], references: [id])
+  txSignature  String            @unique
+  sender       String
+  tokenAddress String
+  amount       Float
+  status       TransactionStatus
+  createdAt    DateTime          @default(now())
+}
+
+model UserForgeWithdrawHistory {
+  id                          String                        @id @default(auto()) @map("_id") @db.ObjectId
+  userId                      String                        @db.ObjectId
+  user                        User                          @relation(fields: [userId], references: [id])
+  processed                   Boolean                       @default(false)
+  processing                  Boolean                       @default(false)
+  amount                      Float
+  txSignature                 String
+  createdAt                   DateTime                      @default(now())
+  walletAddress               String
+  error                       String?
+  UserForgeWithdrawFeeHistory UserForgeWithdrawFeeHistory[]
+
+  @@unique([userId, processed], name: "uniqueConstraint")
+}
+
+model UserForgeWithdrawFeeHistory {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  withdrawId String                   @db.ObjectId
+  withdrawal UserForgeWithdrawHistory @relation(fields: [withdrawId], references: [id])
+
+  fee Float
+}
