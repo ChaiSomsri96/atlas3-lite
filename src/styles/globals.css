@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "./carousel.css";
+
+.hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* width */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+/* Track */
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Handle */
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #555;
+}
+
+/* Handle on hover */
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* stickyColumns.css */
+.sticky-col-1,
+.sticky-col-2 {
+  position: sticky;
+  background-color: inherit;
+  z-index: 1;
+}
+
+.sticky-col-1 {
+  left: 0;
+}
+
+.sticky-col-2 {
+  left: 150px;
+  /* Adjust this value based on the width of the first column */
+}
+
+.shadow-icon {
+  filter: drop-shadow(0px 0px 24px rgba(30, 144, 255, 0.90)) drop-shadow(0px 1.5px 6px rgba(0, 0, 0, 0.35));
+}
+
+.wallet-adapter-button.wallet-adapter-button-trigger {
+  border-radius: 12px;
+  border: 1px solid var(--primary-500-main, #0085EA);
+  box-shadow: 0px 0px 10px 0px rgba(0, 133, 234, 0.30);
+  background-color: transparent !important;
+  font-size: 16px !important;
+  padding: 10px 12px !important;
+  font-family: 'Poppins';
+}
+
+.btn-won {
+  background: #10B981
+}
+
+.btn-won:hover {
+  background: #065F46
+}
+
+.btn-fail {
+  background: #EF4444
+}
+
+.btn-fail:hover {
+  background: #991B1B
+}
+
+.btn-picking {
+  background: #FFD336
+}
+
+.btn-picking:hover {
+  background: #d7b025
+}
