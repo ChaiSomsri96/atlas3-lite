@@ -1,10 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "@/backend/lib/prisma";
+
+import { DiscordRole } from "@prisma/client";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { unstable_getServerSession } from "next-auth";
 
 type ResponseData = {
-  channels: [{ id: string; name: string }];
+  roles: DiscordRole[];
 };
 
 type ErrorData = {
@@ -43,8 +45,8 @@ export default async function handler(
   }
 
   // Fetch Discord Guild Information for Roles
-  const discordGuildChannelsRes = await fetch(
-    `https://discord.com/api/guilds/${project.discordGuild.id}/channels`,
+  const discordGuildRolesRes = await fetch(
+    `https://discord.com/api/guilds/${project.discordGuild.id}/roles`,
     {
       headers: {
         Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
@@ -52,24 +54,12 @@ export default async function handler(
     }
   );
 
-  const discordGuildChannels = await discordGuildChannelsRes.json();
+  const discordGuildRoles = await discordGuildRolesRes.json();
 
-  if (!discordGuildChannels) {
-    return res
-      .status(403)
-      .json({ message: "Error reading channels from guild" });
-  }
+  const roles = discordGuildRoles.map((role: { id: string; name: string }) => ({
+    id: role.id,
+    name: role.name,
+  }));
 
-
-  const channels = discordGuildChannels
-    .filter(
-      (x: { type: number; name: string }) =>
-        (x.type === 0 || x.type === 5) && !x.name.includes("ticket")
-    )
-    .map((channel: { id: string; name: string }) => ({
-      id: channel.id,
-      name: channel.name,
-    }));
-
-  res.status(200).json({ channels });
+  res.status(200).json({ roles });
 }
